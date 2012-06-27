@@ -350,11 +350,13 @@ The function grabs the first activity name as a first approximation."
   "Start application on the device/emulator."
   (interactive)
   (let* ((command (concat (android-tool-path "adb") " shell am start -n "
-                          (android-project-package) "/"
+                          (android-project-package) "/."
                           (android-launcher-activity)))
          (output (shell-command-to-string command)))
-    (when (string-equal "Error" (substring output 0 5))
-      (error output))))
+    (message output)
+    (let ((error-index (string-match "^Error:" output)))
+      (if error-index
+          (error (substring output error-index))))))
 
                                         ; ant
 
