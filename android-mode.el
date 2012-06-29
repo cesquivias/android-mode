@@ -45,9 +45,9 @@
   :prefix "android-mode-"
   :group 'applications)
 
-(defcustom android-mode-sdk-dir "~/Android/sdk"
+(defcustom android-mode-sdk-dir (or (getenv "ANDROID_HOME") "~/Android/sdk")
   "Set to the directory containing the Android SDK."
-  :type 'string
+  :type 'directory
   :group 'android-mode)
 
 (defcustom android-mode-sdk-tool-subdirs '("tools" "platform-tools")
