@@ -325,29 +325,41 @@ defined sdk directory. Defaults to `android-mode-sdk-dir'."
                      package))))))))
 
 (defun android-launcher-activity ()
-  "Return the main launcher activity class name.
+  "Return the main/launcher activity class name.
 
-The function grabs the first activity name as a first approximation."
+Return the first activity found that contains an intent-filter node that has an
+action node with android.intent.action.MAIN in the android:name attribute.
+
+Officially, the main/launcher requires both an action node with
+action:name=\"android.intent.action.MAIN\" and a category node with
+action:name=\"android.intent.category.LAUNCHER\", but checking for only one
+should be sufficient."
   (interactive)
   (android-in-root
-   (let ((manifest "AndroidManifest.xml")
-         (buffer "*android-mode*/AndroidManifest.xml"))
-     (and (file-exists-p manifest)
-          (let ((buffer (get-buffer-create buffer)))
-            (with-current-buffer buffer
-              (erase-buffer)
-              (insert-file-contents manifest)
-              (goto-char (point-min))
-              (and (re-search-forward "android:name=\"\\(.*?\\)\"" nil t)
-                   (let ((activity-name (match-string 1)))
-                     (kill-buffer buffer)
-                     activity-name))))))))
+   (flet ((contains-intent-filter-p (activity)
+                                    (xml-get-children activity 'intent-filter))
+          (name-attr-is-main-p (action)
+                               (equal "android.intent.action.MAIN"
+                                      (xml-get-attribute action 'android:name))))
+     (let* ((root (car (xml-parse-file "AndroidManifest.xml")))
+            (application (car (xml-get-children root 'application)))
+            (activities (xml-get-children application 'activity))
+            (intent-filter-activities (remove-if-not 'contains-intent-filter-p
+                                                     activities))
+            (main-activity
+             (find-if
+              (lambda (act)
+                (let* ((ifilter (car (xml-get-children act 'intent-filter)))
+                       (actions (xml-get-children ifilter 'action)))
+                  (member-if 'name-attr-is-main-p actions)))
+              intent-filter-activities)))
+       (xml-get-attribute-or-nil main-activity 'android:name)))))
 
 (defun android-start-app ()
   "Start application on the device/emulator."
   (interactive)
   (let* ((command (concat (android-tool-path "adb") " shell am start -n "
-                          (android-project-package) "/."
+                          (android-project-package) "/"
                           (android-launcher-activity)))
          (output (shell-command-to-string command)))
     (when (string-match "^Error: " output)
